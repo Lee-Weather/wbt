@@ -30,6 +30,7 @@ parser.add_argument(
     default=None,
     help="Signed URL of a model .pt file. Downloaded at runtime when the run is not available locally.",
 )
+parser.add_argument("--num_steps", type=int, default=0, help="Stop after this many policy steps (0 = run forever).")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -88,8 +89,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         temp_dir = os.path.abspath(os.path.join("logs", "rsl_rl", "temp"))
         os.makedirs(temp_dir, exist_ok=True)
         resume_path = os.path.join(temp_dir, "model.pt")
-        print(f"[INFO]: Downloading checkpoint from URL to {resume_path}")
+        print(f"[INFO]: Downloading checkpoint from URL to {resume_path}", flush=True)
         urllib.request.urlretrieve(args_cli.checkpoint_url, resume_path)
+        print(f"[INFO]: Download finished ({os.path.getsize(resume_path)} bytes)", flush=True)
     elif args_cli.wandb_path:
         import wandb
 
@@ -170,9 +172,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         filename="policy.onnx",
     )
     attach_onnx_metadata(env.unwrapped, args_cli.wandb_path if args_cli.wandb_path else "none", export_model_dir)
+    print(f"[INFO]: Exported ONNX to {export_model_dir}/policy.onnx", flush=True)
     # reset environment
     obs, _ = env.get_observations()
+    print("[INFO]: Environment ready, starting rollout", flush=True)
     timestep = 0
+    done_count = 0
     # simulate environment
     while simulation_app.is_running():
         # run everything in inference mode
@@ -180,12 +185,23 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             # agent stepping
             actions = policy(obs)
             # env stepping
-            obs, _, _, _ = env.step(actions)
+            obs, _, dones, _ = env.step(actions)
+        timestep += 1
+        done_count += int(dones.sum().item())
+        if timestep % 50 == 0:
+            base_z = env.unwrapped.scene["robot"].data.root_pos_w[:, 2]
+            print(
+                f"[INFO]: step={timestep} base_z_mean={base_z.mean().item():.3f} "
+                f"done={done_count} |a|={actions.abs().mean().item():.3f}",
+                flush=True,
+            )
+        if args_cli.num_steps > 0 and timestep >= args_cli.num_steps:
+            break
         if args_cli.video:
-            timestep += 1
             # Exit the play loop after recording one video
             if timestep == args_cli.video_length:
                 break
+    print(f"[INFO]: Rollout finished: steps={timestep}, done={done_count}", flush=True)
 
     # close the simulator
     env.close()
