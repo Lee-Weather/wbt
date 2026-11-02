@@ -30,6 +30,12 @@ parser.add_argument(
     default=None,
     help="Signed URL of a model .pt file. Downloaded at runtime when the run is not available locally.",
 )
+parser.add_argument(
+    "--checkpoint_url_b64",
+    type=str,
+    default=None,
+    help="URL-safe Base64 of a signed model URL. Preferred on the cloud platform (avoids '&' splitting startScript).",
+)
 parser.add_argument("--num_steps", type=int, default=0, help="Stop after this many policy steps (0 = run forever).")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
@@ -82,6 +88,11 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
     log_root_path = os.path.abspath(log_root_path)
+
+    if args_cli.checkpoint_url_b64:
+        import base64
+
+        args_cli.checkpoint_url = base64.urlsafe_b64decode(args_cli.checkpoint_url_b64.encode()).decode()
 
     if args_cli.checkpoint_url:
         import urllib.request
