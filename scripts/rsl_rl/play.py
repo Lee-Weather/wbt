@@ -222,6 +222,10 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             obs, _, dones, _ = env.step(actions)
         timestep += 1
         done_count += int(dones.sum().item())
+        episode_reset = int(dones[0].item())
+        term_mgr = env.unwrapped.termination_manager
+        step_terminated = int(term_mgr.terminated[0].item())
+        step_time_out = int(term_mgr.time_outs[0].item())
         cmd_term = env.unwrapped.command_manager.get_term("motion")
         robot = env.unwrapped.scene["robot"]
         diag_rows.append([
@@ -234,6 +238,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             cmd_term.metrics["error_body_pos"][0].item(),
             cmd_term.metrics["error_body_rot"][0].item(),
             actions.abs().mean().item(),
+            episode_reset,
+            step_terminated,
+            step_time_out,
         ])
         if timestep % 50 == 0:
             base_z = robot.data.root_pos_w[:, 2]
@@ -261,6 +268,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         writer.writerow([
             "step", "base_x", "base_y", "base_z",
             "error_anchor_pos", "error_anchor_rot", "error_body_pos", "error_body_rot", "action_abs_mean",
+            "episode_reset", "step_terminated", "step_time_out",
         ])
         writer.writerows(diag_rows)
     with open(csv_path, "rb") as f:
