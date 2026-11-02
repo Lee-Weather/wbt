@@ -28,16 +28,42 @@ if TYPE_CHECKING:
 
 
 class MotionLoader:
-    def __init__(self, motion_file: str, body_indexes: Sequence[int], device: str = "cpu"):
+    def __init__(
+        self,
+        motion_file: str,
+        body_indexes: Sequence[int],
+        device: str = "cpu",
+        robot_joint_names: Sequence[str] | None = None,
+        robot_body_names: Sequence[str] | None = None,
+    ):
         assert os.path.isfile(motion_file), f"Invalid file path: {motion_file}"
         data = np.load(motion_file)
         self.fps = data["fps"]
-        self.joint_pos = torch.tensor(data["joint_pos"], dtype=torch.float32, device=device)
-        self.joint_vel = torch.tensor(data["joint_vel"], dtype=torch.float32, device=device)
-        self._body_pos_w = torch.tensor(data["body_pos_w"], dtype=torch.float32, device=device)
-        self._body_quat_w = torch.tensor(data["body_quat_w"], dtype=torch.float32, device=device)
-        self._body_lin_vel_w = torch.tensor(data["body_lin_vel_w"], dtype=torch.float32, device=device)
-        self._body_ang_vel_w = torch.tensor(data["body_ang_vel_w"], dtype=torch.float32, device=device)
+        joint_pos = torch.tensor(data["joint_pos"], dtype=torch.float32, device=device)
+        joint_vel = torch.tensor(data["joint_vel"], dtype=torch.float32, device=device)
+        body_pos_w = torch.tensor(data["body_pos_w"], dtype=torch.float32, device=device)
+        body_quat_w = torch.tensor(data["body_quat_w"], dtype=torch.float32, device=device)
+        body_lin_vel_w = torch.tensor(data["body_lin_vel_w"], dtype=torch.float32, device=device)
+        body_ang_vel_w = torch.tensor(data["body_ang_vel_w"], dtype=torch.float32, device=device)
+
+        # Motions generated outside Isaac Lab may store joints/bodies in another order; reorder them by name.
+        if robot_joint_names is not None and "joint_names" in data.files:
+            order = [int(np.where(data["joint_names"] == name)[0][0]) for name in robot_joint_names]
+            joint_pos = joint_pos[:, order]
+            joint_vel = joint_vel[:, order]
+        if robot_body_names is not None and "body_names" in data.files:
+            order = [int(np.where(data["body_names"] == name)[0][0]) for name in robot_body_names]
+            body_pos_w = body_pos_w[:, order]
+            body_quat_w = body_quat_w[:, order]
+            body_lin_vel_w = body_lin_vel_w[:, order]
+            body_ang_vel_w = body_ang_vel_w[:, order]
+
+        self.joint_pos = joint_pos
+        self.joint_vel = joint_vel
+        self._body_pos_w = body_pos_w
+        self._body_quat_w = body_quat_w
+        self._body_lin_vel_w = body_lin_vel_w
+        self._body_ang_vel_w = body_ang_vel_w
         self._body_indexes = body_indexes
         self.time_step_total = self.joint_pos.shape[0]
 
@@ -71,7 +97,13 @@ class MotionCommand(CommandTerm):
             self.robot.find_bodies(self.cfg.body_names, preserve_order=True)[0], dtype=torch.long, device=self.device
         )
 
-        self.motion = MotionLoader(self.cfg.motion_file, self.body_indexes, device=self.device)
+        self.motion = MotionLoader(
+            self.cfg.motion_file,
+            self.body_indexes,
+            device=self.device,
+            robot_joint_names=self.robot.joint_names,
+            robot_body_names=self.robot.body_names,
+        )
         self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
         self.body_pos_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 3, device=self.device)
         self.body_quat_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 4, device=self.device)
