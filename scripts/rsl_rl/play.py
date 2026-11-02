@@ -52,6 +52,12 @@ parser.add_argument(
     action="store_true",
     help="Disable early terminations (useful for recording a full-length video).",
 )
+parser.add_argument(
+    "--dump_obs",
+    type=int,
+    default=0,
+    help="Dump the first N steps of (obs, action) to gm_play/obs_dump.csv packaged as a .pt artifact.",
+)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -212,12 +218,17 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     timestep = 0
     done_count = 0
     diag_rows = []
+    obs_rows = []
     # simulate environment
     while simulation_app.is_running():
         # run everything in inference mode
         with torch.inference_mode():
             # agent stepping
             actions = policy(obs)
+            if args_cli.dump_obs > 0 and timestep < args_cli.dump_obs:
+                obs_vec = obs["policy"][0] if isinstance(obs, dict) else obs[0]
+                row = [timestep] + obs_vec.detach().cpu().tolist() + actions[0].detach().cpu().tolist()
+                obs_rows.append(row)
             # env stepping
             obs, _, dones, _ = env.step(actions)
         timestep += 1
@@ -276,6 +287,20 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     pt_path = os.path.join(diag_dir, "model_isaac_csv.pt")
     torch.save({"bytes": csv_bytes}, pt_path)
     print(f"[INFO]: Wrote {csv_path} ({len(diag_rows)} rows) and {pt_path}", flush=True)
+
+    if obs_rows:
+        n_obs = len(obs_rows[0]) - 1 - 29
+        obs_csv_path = os.path.join(diag_dir, "obs_dump.csv")
+        with open(obs_csv_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            header = ["step"] + [f"obs_{i}" for i in range(n_obs)] + [f"act_{i}" for i in range(29)]
+            writer.writerow(header)
+            writer.writerows(obs_rows)
+        with open(obs_csv_path, "rb") as f:
+            obs_bytes = f.read()
+        obs_pt_path = os.path.join(diag_dir, "model_obs_dump.pt")
+        torch.save({"bytes": obs_bytes}, obs_pt_path)
+        print(f"[INFO]: Wrote {obs_csv_path} ({len(obs_rows)} rows, {n_obs} obs dims) and {obs_pt_path}", flush=True)
 
     # close the simulator (flushes the recorded video)
     env.close()
