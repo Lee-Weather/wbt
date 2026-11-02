@@ -24,6 +24,12 @@ parser.add_argument(
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
 parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument("--motion_file", type=str, default=None, help="Path to the motion file.")
+parser.add_argument(
+    "--checkpoint_url",
+    type=str,
+    default=None,
+    help="Signed URL of a model .pt file. Downloaded at runtime when the run is not available locally.",
+)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -76,7 +82,15 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
     log_root_path = os.path.abspath(log_root_path)
 
-    if args_cli.wandb_path:
+    if args_cli.checkpoint_url:
+        import urllib.request
+
+        temp_dir = os.path.abspath(os.path.join("logs", "rsl_rl", "temp"))
+        os.makedirs(temp_dir, exist_ok=True)
+        resume_path = os.path.join(temp_dir, "model.pt")
+        print(f"[INFO]: Downloading checkpoint from URL to {resume_path}")
+        urllib.request.urlretrieve(args_cli.checkpoint_url, resume_path)
+    elif args_cli.wandb_path:
         import wandb
 
         run_path = args_cli.wandb_path
