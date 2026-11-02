@@ -33,8 +33,18 @@ from isaaclab.app import AppLauncher
 
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Convert a retargeted motion to the tracking npz format.")
-parser.add_argument("--input_file", type=str, required=True, help="Path to the input .pkl or qpos .npz file.")
-parser.add_argument("--output_file", type=str, required=True, help="Path to the output npz file.")
+parser.add_argument(
+    "--input_file",
+    type=str,
+    required=True,
+    help="Path to the input .pkl or qpos .npz file, or a directory containing such files (batch mode).",
+)
+parser.add_argument(
+    "--output_file",
+    type=str,
+    required=True,
+    help="Path to the output npz file, or a directory when --input_file is a directory.",
+)
 parser.add_argument("--max_frames", type=int, default=-1, help="Optionally truncate the output to this many frames.")
 
 # append AppLauncher cli args
@@ -164,7 +174,7 @@ class MotionLoader:
         return torch.cat([omega[:1], omega, omega[-1:]], dim=0)
 
 
-def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene, motion: MotionLoader):
+def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene, motion: MotionLoader, output_file: str):
     robot: Articulation = scene["robot"]
     robot_joint_indexes = robot.find_joints(motion.dof_names, preserve_order=True)[0]
 
@@ -207,9 +217,27 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene, mot
     for key in ("joint_pos", "joint_vel", "body_pos_w", "body_quat_w", "body_lin_vel_w", "body_ang_vel_w"):
         log[key] = np.stack(log[key], axis=0)
 
-    os.makedirs(os.path.dirname(os.path.abspath(args_cli.output_file)), exist_ok=True)
-    np.savez(args_cli.output_file, **log)
-    print(f"[INFO]: Saved {num_frames} frames to {args_cli.output_file}")
+    os.makedirs(os.path.dirname(os.path.abspath(output_file)), exist_ok=True)
+    np.savez(output_file, **log)
+    print(f"[INFO]: Saved {num_frames} frames to {output_file}")
+
+
+def _collect_inputs(input_path: str, output_path: str) -> list[tuple[str, str]]:
+    """Expand the CLI input into a list of (input_file, output_file) pairs."""
+    if os.path.isdir(input_path):
+        if output_path.lower().endswith(".npz"):
+            raise ValueError("When --input_file is a directory, --output_file must be a directory as well.")
+        out_dir = os.path.abspath(output_path)
+        files = sorted(
+            os.path.join(input_path, f)
+            for f in os.listdir(input_path)
+            if f.lower().endswith((".pkl", ".npz"))
+        )
+        files = [f for f in files if os.path.dirname(os.path.abspath(f)) != out_dir]
+        if not files:
+            raise ValueError(f"No .pkl/.npz files found in {input_path}.")
+        return [(f, os.path.join(out_dir, os.path.splitext(os.path.basename(f))[0] + ".npz")) for f in files]
+    return [(input_path, output_path)]
 
 
 def main():
@@ -219,8 +247,13 @@ def main():
 
     scene = InteractiveScene(ConvertSceneCfg(num_envs=1, env_spacing=2.0))
     sim.reset()
-    motion = MotionLoader(args_cli.input_file, sim.device)
-    run_simulator(sim, scene, motion)
+
+    jobs = _collect_inputs(args_cli.input_file, args_cli.output_file)
+    for input_file, output_file in jobs:
+        print(f"[INFO]: Converting {input_file} -> {output_file}")
+        motion = MotionLoader(input_file, sim.device)
+        run_simulator(sim, scene, motion, output_file)
+    print(f"[INFO]: Converted {len(jobs)} motion(s).")
 
 
 if __name__ == "__main__":
