@@ -42,6 +42,12 @@ parser.add_argument(
 )
 parser.add_argument("--num_steps", type=int, default=0, help="Stop after this many policy steps (0 = run forever).")
 parser.add_argument(
+    "--checkpoint_name",
+    type=str,
+    default=None,
+    help="Local filename for the downloaded checkpoint (use model_<iteration>.pt so the platform registers it).",
+)
+parser.add_argument(
     "--no_termination",
     action="store_true",
     help="Disable early terminations (useful for recording a full-length video).",
@@ -108,7 +114,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
         temp_dir = os.path.abspath(os.path.join("logs", "rsl_rl", "temp"))
         os.makedirs(temp_dir, exist_ok=True)
-        resume_path = os.path.join(temp_dir, "model.pt")
+        resume_path = os.path.join(temp_dir, args_cli.checkpoint_name or "model.pt")
         print(f"[INFO]: Downloading checkpoint from URL to {resume_path}", flush=True)
         urllib.request.urlretrieve(args_cli.checkpoint_url, resume_path)
         print(f"[INFO]: Download finished ({os.path.getsize(resume_path)} bytes)", flush=True)
