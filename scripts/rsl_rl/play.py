@@ -7,6 +7,7 @@ import csv
 import glob
 import shutil
 import sys
+import time
 from pathlib import Path
 
 # make the extension importable without `pip install -e` (e.g. on the training platform)
@@ -274,6 +275,10 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             print(f"[INFO]: Video saved to {target} ({os.path.getsize(target)} bytes)", flush=True)
         else:
             print(f"[WARN]: No mp4 found in {video_dir}", flush=True)
+
+    # Give the platform SDK time to finish scanning/uploading the generated artifacts.
+    print("[INFO]: Holding 60s for artifact upload", flush=True)
+    time.sleep(60)
 
 
 if __name__ == "__main__":
