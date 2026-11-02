@@ -3,6 +3,9 @@
 """Launch Isaac Sim Simulator first."""
 
 import argparse
+import csv
+import glob
+import shutil
 import sys
 from pathlib import Path
 
@@ -37,6 +40,11 @@ parser.add_argument(
     help="URL-safe Base64 of a signed model URL. Preferred on the cloud platform (avoids '&' splitting startScript).",
 )
 parser.add_argument("--num_steps", type=int, default=0, help="Stop after this many policy steps (0 = run forever).")
+parser.add_argument(
+    "--no_termination",
+    action="store_true",
+    help="Disable early terminations (useful for recording a full-length video).",
+)
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -141,6 +149,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         print(f"[INFO]: Using motion file from CLI: {args_cli.motion_file}", flush=True)
         env_cfg.commands.motion.motion_file = args_cli.motion_file
 
+    if args_cli.no_termination:
+        env_cfg.terminations.anchor_pos = None
+        env_cfg.terminations.anchor_ori = None
+        env_cfg.terminations.ee_body_pos = None
+        print("[INFO]: Early terminations disabled", flush=True)
+
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
@@ -152,6 +166,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             "video_folder": os.path.join(log_dir, "videos", "play"),
             "step_trigger": lambda step: step == 0,
             "video_length": args_cli.video_length,
+            "name_prefix": "play_output",
             "disable_logger": True,
         }
         print("[INFO] Recording videos during training.")
@@ -189,6 +204,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     print("[INFO]: Environment ready, starting rollout", flush=True)
     timestep = 0
     done_count = 0
+    diag_rows = []
     # simulate environment
     while simulation_app.is_running():
         # run everything in inference mode
@@ -199,11 +215,26 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             obs, _, dones, _ = env.step(actions)
         timestep += 1
         done_count += int(dones.sum().item())
+        cmd_term = env.unwrapped.command_manager.get_term("motion")
+        robot = env.unwrapped.scene["robot"]
+        diag_rows.append([
+            timestep,
+            robot.data.root_pos_w[0, 0].item(),
+            robot.data.root_pos_w[0, 1].item(),
+            robot.data.root_pos_w[0, 2].item(),
+            cmd_term.metrics["error_anchor_pos"][0].item(),
+            cmd_term.metrics["error_anchor_rot"][0].item(),
+            cmd_term.metrics["error_body_pos"][0].item(),
+            cmd_term.metrics["error_body_rot"][0].item(),
+            actions.abs().mean().item(),
+        ])
         if timestep % 50 == 0:
-            base_z = env.unwrapped.scene["robot"].data.root_pos_w[:, 2]
+            base_z = robot.data.root_pos_w[:, 2]
             print(
                 f"[INFO]: step={timestep} base_z_mean={base_z.mean().item():.3f} "
-                f"done={done_count} |a|={actions.abs().mean().item():.3f}",
+                f"done={done_count} |a|={actions.abs().mean().item():.3f} "
+                f"anchor_err={cmd_term.metrics['error_anchor_pos'][0].item():.3f} "
+                f"body_err={cmd_term.metrics['error_body_pos'][0].item():.3f}",
                 flush=True,
             )
         if args_cli.num_steps > 0 and timestep >= args_cli.num_steps:
@@ -214,8 +245,35 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                 break
     print(f"[INFO]: Rollout finished: steps={timestep}, done={done_count}", flush=True)
 
-    # close the simulator
+    # diagnostics CSV + PT package for the platform artifact pipeline
+    diag_dir = os.path.join(log_root_path, "gm_play")
+    os.makedirs(diag_dir, exist_ok=True)
+    csv_path = os.path.join(diag_dir, "isaac_diag.csv")
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "step", "base_x", "base_y", "base_z",
+            "error_anchor_pos", "error_anchor_rot", "error_body_pos", "error_body_rot", "action_abs_mean",
+        ])
+        writer.writerows(diag_rows)
+    with open(csv_path, "rb") as f:
+        csv_bytes = f.read()
+    pt_path = os.path.join(diag_dir, "model_isaac_csv.pt")
+    torch.save({"bytes": csv_bytes}, pt_path)
+    print(f"[INFO]: Wrote {csv_path} ({len(diag_rows)} rows) and {pt_path}", flush=True)
+
+    # close the simulator (flushes the recorded video)
     env.close()
+
+    if args_cli.video:
+        video_dir = os.path.join(log_dir, "videos", "play")
+        videos = sorted(glob.glob(os.path.join(video_dir, "*.mp4")))
+        if videos:
+            target = os.path.join(log_root_path, "play_output.mp4")
+            shutil.copyfile(videos[-1], target)
+            print(f"[INFO]: Video saved to {target} ({os.path.getsize(target)} bytes)", flush=True)
+        else:
+            print(f"[WARN]: No mp4 found in {video_dir}", flush=True)
 
 
 if __name__ == "__main__":
