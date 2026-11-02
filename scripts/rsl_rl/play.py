@@ -112,7 +112,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     if args_cli.checkpoint_url:
         import urllib.request
 
-        temp_dir = os.path.abspath(os.path.join("logs", "rsl_rl", "temp"))
+        temp_dir = os.path.abspath(os.path.join("logs", "rsl_rl", agent_cfg.experiment_name, "gm_play"))
         os.makedirs(temp_dir, exist_ok=True)
         resume_path = os.path.join(temp_dir, args_cli.checkpoint_name or "model.pt")
         print(f"[INFO]: Downloading checkpoint from URL to {resume_path}", flush=True)
@@ -286,7 +286,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         if videos:
             target = os.path.join(log_root_path, "play_output.mp4")
             shutil.copyfile(videos[-1], target)
-            print(f"[INFO]: Video saved to {target} ({os.path.getsize(target)} bytes)", flush=True)
+            target_gm = os.path.join(log_root_path, "gm_play", "play_output.mp4")
+            shutil.copyfile(videos[-1], target_gm)
+            print(f"[INFO]: Video saved to {target} and {target_gm} ({os.path.getsize(target)} bytes)", flush=True)
         else:
             print(f"[WARN]: No mp4 found in {video_dir}", flush=True)
 
