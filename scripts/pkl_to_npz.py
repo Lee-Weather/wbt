@@ -20,6 +20,11 @@ replayed in Isaac Sim so that joint order matches the articulation exactly.
 import argparse
 import os
 import pickle
+import sys
+from pathlib import Path
+
+# make the extension importable without `pip install -e` (e.g. on the training platform)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "source" / "whole_body_tracking"))
 
 import numpy as np
 import torch

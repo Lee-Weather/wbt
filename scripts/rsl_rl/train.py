@@ -9,6 +9,10 @@
 
 import argparse
 import sys
+from pathlib import Path
+
+# make the extension importable without `pip install -e` (e.g. on the training platform)
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "source" / "whole_body_tracking"))
 
 from isaaclab.app import AppLauncher
 
