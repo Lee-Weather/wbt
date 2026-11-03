@@ -42,3 +42,6 @@ _build
 
 **/assets/
 artifacts/
+
+# Secrets
+czy/skills/flux-cli/api_key.json
