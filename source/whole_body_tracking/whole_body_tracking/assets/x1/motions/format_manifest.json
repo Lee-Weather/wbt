@@ -103,11 +103,14 @@
   ],
   "clips": {
     "F1_B1_stand_to_walk": {
-      "frames": 311,
-      "duration_s": 6.22,
+      "frames": 385,
+      "duration_s": 7.7,
       "motion_role": "transition",
       "periodic": false,
-      "output": "F1_B1_stand_to_walk.pkl"
+      "output": "F1_B1_stand_to_walk.pkl",
+      "prepended_pd_stand_frames": 25,
+      "transition_frames": 50,
+      "note": "First 25 frames hold the deployment pd_stand pose (0.5 s), then a 50-frame Hermite blend (1.0 s) into the original first frame; rest is the unchanged original clip. Backup: F1_B1_stand_to_walk_orig.pkl"
     },
     "F1_B2_walk_to_stand": {
       "frames": 284,
