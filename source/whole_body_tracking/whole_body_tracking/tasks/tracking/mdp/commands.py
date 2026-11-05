@@ -105,6 +105,9 @@ class MotionCommand(CommandTerm):
             robot_body_names=self.robot.body_names,
         )
         self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+        # highest start frame that still lets one full episode finish inside the clip
+        episode_steps = int(math.ceil(env.cfg.episode_length_s / (env.cfg.decimation * env.cfg.sim.dt)))
+        self.max_start_frame = max(0, self.motion.time_step_total - 1 - episode_steps)
         self.body_pos_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 3, device=self.device)
         self.body_quat_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 4, device=self.device)
         self.body_quat_relative_w[:, :, 0] = 1.0
@@ -263,6 +266,10 @@ class MotionCommand(CommandTerm):
             / self.bin_count
             * (self.motion.time_step_total - 1)
         ).long()
+        if self.cfg.fit_episode_to_motion:
+            # keep the sampled start inside the clip so the episode never runs past the
+            # last frame, where _update_command would teleport the robot to a new segment
+            self.time_steps[env_ids] = torch.clamp(self.time_steps[env_ids], max=self.max_start_frame)
 
         # Metrics
         H = -(sampling_probabilities * (sampling_probabilities + 1e-12).log()).sum()
@@ -396,6 +403,12 @@ class MotionCommandCfg(CommandTermCfg):
     velocity_range: dict[str, tuple[float, float]] = {}
 
     joint_position_range: tuple[float, float] = (-0.52, 0.52)
+
+    # Restrict the sampled episode start to frames where the whole episode still fits in the
+    # clip. Without it, a reference shorter than (or close to) episode_length_s makes every
+    # episode run off the end of the motion, where the command resamples and teleports the
+    # robot to a new segment instead of letting the robot finish the motion.
+    fit_episode_to_motion: bool = False
 
     adaptive_kernel_size: int = 1
     adaptive_lambda: float = 0.8

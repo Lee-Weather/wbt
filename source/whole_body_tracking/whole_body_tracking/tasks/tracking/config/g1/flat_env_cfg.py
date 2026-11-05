@@ -1,5 +1,6 @@
 from isaaclab.utils import configclass
 
+from whole_body_tracking.assets import ASSET_DIR
 from whole_body_tracking.robots.g1 import G1_ACTION_SCALE, G1_CYLINDER_CFG
 from whole_body_tracking.tasks.tracking.config.g1.agents.rsl_rl_ppo_cfg import LOW_FREQ_SCALE
 from whole_body_tracking.tasks.tracking.tracking_env_cfg import TrackingEnvCfg
@@ -29,6 +30,23 @@ class G1FlatEnvCfg(TrackingEnvCfg):
             "right_elbow_link",
             "right_wrist_yaw_link",
         ]
+
+
+@configclass
+class G1DanceEnvCfg(G1FlatEnvCfg):
+    """Whole-clip dance tracking: one episode spans the reference clip instead of 10 s.
+
+    The 30 s clip is 1499 frames at 50 Hz, so ``episode_length_s = 29.0`` leaves one second
+    of slack: every episode starts early enough to finish before the last frame ends (the
+    command term teleports the robot to a random frame if an episode runs off the clip).
+    """
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.commands.motion.motion_file = f"{ASSET_DIR}/g1/motions/dance2_subject3_30s.npz"
+        self.commands.motion.fit_episode_to_motion = True
+        self.episode_length_s = 29.0
 
 
 @configclass
