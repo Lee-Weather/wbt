@@ -267,9 +267,12 @@ class MotionCommand(CommandTerm):
             * (self.motion.time_step_total - 1)
         ).long()
         if self.cfg.fit_episode_to_motion:
-            # keep the sampled start inside the clip so the episode never runs past the
-            # last frame, where _update_command would teleport the robot to a new segment
-            self.time_steps[env_ids] = torch.clamp(self.time_steps[env_ids], max=self.max_start_frame)
+            # Map the sampled frame into the window where the whole episode still fits inside
+            # the clip: past the last frame _update_command would teleport the robot to a new
+            # segment mid-episode. Scaling rather than clamping keeps the adaptive distribution
+            # spread over the window instead of piling every start onto the last feasible frame.
+            scale = self.max_start_frame / max(1, self.motion.time_step_total - 1)
+            self.time_steps[env_ids] = (self.time_steps[env_ids].float() * scale).long()
 
         # Metrics
         H = -(sampling_probabilities * (sampling_probabilities + 1e-12).log()).sum()
