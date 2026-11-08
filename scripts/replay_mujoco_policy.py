@@ -589,6 +589,9 @@ def main() -> None:
     parser.add_argument("--video-fps", type=int, default=50)
     parser.add_argument("--width", type=int, default=960)
     parser.add_argument("--height", type=int, default=540)
+    parser.add_argument("--camera-azimuth", type=float, default=135.0, help="Camera compass azimuth (deg).")
+    parser.add_argument("--camera-elevation", type=float, default=-14.0, help="Camera elevation (deg).")
+    parser.add_argument("--camera-distance", type=float, default=2.6, help="Camera distance (m).")
     parser.add_argument("--report", type=Path, default=None)
     args = parser.parse_args()
     if args.robot_config is None:
@@ -619,7 +622,11 @@ def main() -> None:
         if not writer.isOpened():
             raise RuntimeError("video writer did not open")
         camera = mujoco.MjvCamera()
-        camera.distance, camera.azimuth, camera.elevation = 2.6, 135, -14
+        camera.distance, camera.azimuth, camera.elevation = (
+            args.camera_distance,
+            args.camera_azimuth,
+            args.camera_elevation,
+        )
 
     print(
         "MUJOCO_REPLAY_START",
