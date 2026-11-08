@@ -592,6 +592,11 @@ def main() -> None:
     parser.add_argument("--camera-azimuth", type=float, default=135.0, help="Camera compass azimuth (deg).")
     parser.add_argument("--camera-elevation", type=float, default=-14.0, help="Camera elevation (deg).")
     parser.add_argument("--camera-distance", type=float, default=2.6, help="Camera distance (m).")
+    parser.add_argument(
+        "--compare-reference",
+        action="store_true",
+        help="Render the reference clip (kinematic playback) next to the policy, same camera.",
+    )
     parser.add_argument("--report", type=Path, default=None)
     args = parser.parse_args()
     if args.robot_config is None:
@@ -609,6 +614,7 @@ def main() -> None:
     started = time.perf_counter()
     writer = renderer = camera = None
     raw_video = None
+    ref_data = None
     if args.video is not None:
         import cv2
 
@@ -617,8 +623,9 @@ def main() -> None:
         replay.model.vis.global_.offwidth = args.width
         replay.model.vis.global_.offheight = args.height
         renderer = mujoco.Renderer(replay.model, height=args.height, width=args.width)
+        writer_width = args.width * 2 if args.compare_reference else args.width
         writer = cv2.VideoWriter(str(raw_video), cv2.VideoWriter_fourcc(*"mp4v"),
-                                 args.video_fps, (args.width, args.height))
+                                 args.video_fps, (writer_width, args.height))
         if not writer.isOpened():
             raise RuntimeError("video writer did not open")
         camera = mujoco.MjvCamera()
@@ -627,6 +634,8 @@ def main() -> None:
             args.camera_azimuth,
             args.camera_elevation,
         )
+        if args.compare_reference:
+            ref_data = mujoco.MjData(replay.model)
 
     print(
         "MUJOCO_REPLAY_START",
@@ -652,6 +661,23 @@ def main() -> None:
                 camera.lookat[2] = 0.8
                 renderer.update_scene(replay.data, camera=camera)
                 frame = cv2.cvtColor(renderer.render(), cv2.COLOR_RGB2BGR)
+                if ref_data is not None:
+                    frame_index = replay.reference_frame(replay.index)
+                    ref_data.qpos[:] = 0.0
+                    ref_data.qpos[:3] = replay.motion["body_pos_w"][frame_index, replay.root_ref_id]
+                    ref_data.qpos[3:7] = replay.motion["body_quat_w"][frame_index, replay.root_ref_id]
+                    ref_data.qpos[replay.qpos_ids] = replay.motion["joint_pos"][frame_index, replay.motion_joint_ids]
+                    mujoco.mj_forward(replay.model, ref_data)
+                    camera.lookat[:] = ref_data.xpos[replay.root_body]
+                    camera.lookat[2] = 0.8
+                    renderer.update_scene(ref_data, camera=camera)
+                    reference_panel = cv2.cvtColor(renderer.render(), cv2.COLOR_RGB2BGR)
+                    cv2.putText(reference_panel, "reference", (20, args.height - 20),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+                    cv2.putText(frame, f"policy (MuJoCo) | iter {replay.iteration}", (20, args.height - 20),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+                    frame = cv2.hconcat([reference_panel, frame])
+                    cv2.line(frame, (args.width, 0), (args.width, args.height), (255, 255, 255), 2)
                 cv2.putText(
                     frame,
                     f"{args.robot.upper()} BeyondMimic | iter {replay.iteration} | t={replay.index * replay.dt:.2f}s "
