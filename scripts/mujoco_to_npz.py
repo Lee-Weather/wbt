@@ -9,6 +9,16 @@ them to the Isaac articulation at runtime.
     python mujoco_to_npz.py \
         --input_dir source/whole_body_tracking/whole_body_tracking/assets/x1/motions/accad_120hz \
         --output_dir source/whole_body_tracking/whole_body_tracking/assets/x1/motions/converted
+
+Pass ``--model`` to convert motions for another robot (the model must contain the same
+joints as the npz ``robot_joint_names``):
+
+.. code-block:: bash
+
+    python mujoco_to_npz.py \
+        --model source/whole_body_tracking/whole_body_tracking/assets/f1/mjcf/f1_29dof_scene.xml \
+        --input_dir source/whole_body_tracking/whole_body_tracking/assets/f1/motions/accad_120hz \
+        --output_dir source/whole_body_tracking/whole_body_tracking/assets/f1/motions/converted
 """
 
 import argparse
@@ -126,20 +136,39 @@ def main():
     parser.add_argument("--input_dir", type=str, required=True)
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--fps", type=float, default=50.0, help="Target tracking fps (fixed at 50 by default).")
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="MuJoCo scene MJCF used for forward kinematics (default: the X1 29-DoF scene).",
+    )
     args = parser.parse_args()
 
-    model_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "source/whole_body_tracking/whole_body_tracking/assets/x1/mjcf/x1_29dof_scene.xml",
-    )
-    model = mujoco.MjModel.from_xml_path(model_path)
+    if args.model is None:
+        args.model = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "source/whole_body_tracking/whole_body_tracking/assets/x1/mjcf/x1_29dof_scene.xml",
+        )
+    model = mujoco.MjModel.from_xml_path(args.model)
     data = mujoco.MjData(model)
     body_names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, i) for i in range(1, model.nbody)]
     joint_names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, i) for i in range(1, model.njnt)]
 
     os.makedirs(args.output_dir, exist_ok=True)
+    model_joint_names = [
+        mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, i)
+        for i in range(model.njnt)
+        if model.jnt_type[i] != mujoco.mjtJoint.mjJNT_FREE
+    ]
     for path in sorted(glob.glob(os.path.join(args.input_dir, "*.npz"))):
         raw = np.load(path, allow_pickle=True)
+        if "robot_joint_names" in raw.files:
+            npz_joint_names = [str(n) for n in raw["robot_joint_names"]]
+            if npz_joint_names != model_joint_names:
+                raise ValueError(
+                    f"{os.path.basename(path)}: npz joint order does not match the model hinge order; "
+                    f"npz[0]={npz_joint_names[0]}, model[0]={model_joint_names[0]}"
+                )
         fps_in = float(raw["fps"][0])
         qpos = raw["qpos"].astype(np.float64)
         if fps_in != args.fps:

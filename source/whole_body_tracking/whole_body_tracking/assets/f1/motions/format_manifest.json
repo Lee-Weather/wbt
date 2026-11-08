@@ -1,0 +1,24 @@
+{
+  "format": "UMR qpos npz -> tracking npz via MuJoCo FK (scripts/mujoco_to_npz.py)",
+  "model": "assets/f1/mjcf/f1_29dof_scene.xml",
+  "urdf": "assets/f1/urdf/f1_29dof.urdf",
+  "urdf_spec": "SYS-SPEC-0002-V1.0-F1下肢优化MuJoCo模型29DOF (same kinematics as the UMR retargeting model)",
+  "source_dirs": [
+    "e:/F1/retargeting/F1/UMR/weichai_f1_29_accad_walking",
+    "e:/F1/retargeting/F1/UMR/weichai_f1_29_accad_running"
+  ],
+  "fps": 50.0,
+  "source_fps_hz": 120.0,
+  "source_joint_order": "UMR robot_joint_names (also the MJCF hinge order; verified at conversion time)",
+  "note": "Root XY centered on the first frame; ground_z from the UMR data (2-3 cm) is NOT subtracted, matching the X1 conversion behavior.",
+  "clips": {
+    "B1_stand_to_walk_weichai_f1_29": {"frames": 311, "duration_s": 6.22, "motion_role": "transition"},
+    "B2_walk_to_stand_weichai_f1_29": {"frames": 284, "duration_s": 5.68, "motion_role": "transition"},
+    "B3_walk1_weichai_f1_29": {"frames": 381, "duration_s": 7.62, "motion_role": "continuous_gait", "periodic": true},
+    "B4_stand_to_walk_back_weichai_f1_29": {"frames": 378, "duration_s": 7.56, "motion_role": "continuous_gait", "periodic": true},
+    "C2_Run_to_stand_f1": {"frames": 266, "duration_s": 5.32, "motion_role": "transition"},
+    "C3_Run_f1": {"frames": 85, "duration_s": 1.7, "motion_role": "continuous_gait", "periodic": true},
+    "C4_Run_to_walk_f1": {"frames": 177, "duration_s": 3.54, "motion_role": "transition"},
+    "C5_Walk_to_run_f1": {"frames": 271, "duration_s": 5.42, "motion_role": "transition"}
+  }
+}
