@@ -101,39 +101,41 @@ G1_TRACKED_BODY_NAMES = [
     "right_wrist_yaw_link",
 ]
 
-# F1 (weichai_f1_29, SYS-SPEC-0002-V1.0 URDF): the URDF declares the revolute
-# joints in document order lumbar -> left arm -> right arm -> left leg -> right leg,
-# which is the order Isaac Lab exposes for the URDF-spawned articulation.
+# F1 (weichai_f1_29, SYS-SPEC-0002-V1.0 URDF). This is the exact order Isaac Lab
+# reports for the URDF-spawned articulation (verified on the training image with
+# scripts/debug_joint_order.py, TASK_20261108_045): the importer interleaves
+# left / spine / right chains (left_hip_pitch, lumbar_yaw, right_hip_pitch, ...),
+# NOT the URDF document order.
 F1_POLICY_JOINT_ORDER = [
-    "lumbar_yaw_joint",
-    "lumbar_roll_joint",
-    "lumbar_pitch_joint",
-    "left_shoulder_pitch_joint",
-    "left_shoulder_roll_joint",
-    "left_shoulder_yaw_joint",
-    "left_elbow_pitch_joint",
-    "left_elbow_yaw_joint",
-    "left_wrist_pitch_joint",
-    "left_wrist_roll_joint",
-    "right_shoulder_pitch_joint",
-    "right_shoulder_roll_joint",
-    "right_shoulder_yaw_joint",
-    "right_elbow_pitch_joint",
-    "right_elbow_yaw_joint",
-    "right_wrist_pitch_joint",
-    "right_wrist_roll_joint",
     "left_hip_pitch_joint",
-    "left_hip_roll_joint",
-    "left_hip_yaw_joint",
-    "left_knee_pitch_joint",
-    "left_ankle_pitch_joint",
-    "left_ankle_roll_joint",
+    "lumbar_yaw_joint",
     "right_hip_pitch_joint",
+    "left_hip_roll_joint",
+    "lumbar_roll_joint",
     "right_hip_roll_joint",
+    "left_hip_yaw_joint",
+    "lumbar_pitch_joint",
     "right_hip_yaw_joint",
+    "left_knee_pitch_joint",
+    "left_shoulder_pitch_joint",
+    "right_shoulder_pitch_joint",
     "right_knee_pitch_joint",
+    "left_ankle_pitch_joint",
+    "left_shoulder_roll_joint",
+    "right_shoulder_roll_joint",
     "right_ankle_pitch_joint",
+    "left_ankle_roll_joint",
+    "left_shoulder_yaw_joint",
+    "right_shoulder_yaw_joint",
     "right_ankle_roll_joint",
+    "left_elbow_pitch_joint",
+    "right_elbow_pitch_joint",
+    "left_elbow_yaw_joint",
+    "right_elbow_yaw_joint",
+    "left_wrist_pitch_joint",
+    "right_wrist_pitch_joint",
+    "left_wrist_roll_joint",
+    "right_wrist_roll_joint",
 ]
 
 # Bodies tracked by the F1 tracking task (config/f1/flat_env_cfg.py body_names).
