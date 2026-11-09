@@ -385,8 +385,8 @@ class Replay:
             action_scale_constant=self.profile["action_scale_constant"],
         )
         self.default = params["default_joint_pos"]
-        self.kp = params["kp"]
-        self.kd = params["kd"]
+        self.kp = params["kp"] * args.kp_scale
+        self.kd = params["kd"] * args.kd_scale
         self.effort = params["effort_limit"]
         self.action_scale = params["action_scale"]
 
@@ -598,6 +598,10 @@ def main() -> None:
         help="Render the reference clip (kinematic playback) next to the policy, same camera.",
     )
     parser.add_argument("--report", type=Path, default=None)
+    parser.add_argument("--kp-scale", type=float, default=1.0,
+                        help="Global stiffness (Kp) multiplier (default: 1.0).")
+    parser.add_argument("--kd-scale", type=float, default=1.0,
+                        help="Global damping (Kd) multiplier (default: 1.0).")
     args = parser.parse_args()
     if args.robot_config is None:
         args.robot_config = ROBOT_PROFILES[args.robot]["robot_config"]
