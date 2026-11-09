@@ -163,6 +163,7 @@ def _make_cfg(actuators: dict[str, ImplicitActuatorCfg]) -> ArticulationCfg:
                 max_angular_velocity=1000.0,
                 max_depenetration_velocity=1.0,
             ),
+            joint_drive=None,
         ),
         init_state=ArticulationCfg.InitialStateCfg(
             pos=(0.0, 0.0, 0.61),
