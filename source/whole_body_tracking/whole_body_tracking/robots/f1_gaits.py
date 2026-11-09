@@ -163,14 +163,6 @@ def _make_cfg(actuators: dict[str, ImplicitActuatorCfg]) -> ArticulationCfg:
                 max_angular_velocity=1000.0,
                 max_depenetration_velocity=1.0,
             ),
-            articulation_props=sim_utils.UrdfConverterCfg.ArticulationPropertiesCfg(
-                enabled_self_collisions=True,
-                solver_position_iteration_count=8,
-                solver_velocity_iteration_count=4,
-            ),
-            joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
-                gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0, damping=0)
-            ),
         ),
         init_state=ArticulationCfg.InitialStateCfg(
             pos=(0.0, 0.0, 0.61),
