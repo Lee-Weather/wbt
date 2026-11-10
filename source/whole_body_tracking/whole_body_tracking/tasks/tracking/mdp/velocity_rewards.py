@@ -12,7 +12,7 @@ from __future__ import annotations
 import torch
 from typing import TYPE_CHECKING
 
-from isaaclab.managers.scene_manager import SceneEntityCfg
+from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
 
 from whole_body_tracking.tasks.tracking.mdp.velocity_commands import VelocityCommand
