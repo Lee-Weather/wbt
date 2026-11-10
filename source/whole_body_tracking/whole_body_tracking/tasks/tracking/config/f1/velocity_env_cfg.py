@@ -133,24 +133,24 @@ class VelocityRewardsCfg:
     lin_vel_tracking = RewTerm(
         func=vreward.tracking_lin_vel,
         weight=1.5,
-        params={"std": 0.25},
+        params={"command_name": "motion", "std": 0.25},
     )
     ang_vel_tracking = RewTerm(
         func=vreward.tracking_ang_vel,
         weight=1.0,
-        params={"std": 0.25},
+        params={"command_name": "motion", "std": 0.25},
     )
 
     # ── Gait prior (soft constraint from reference clip) ────
     ref_joint_prior = RewTerm(
         func=vreward.ref_joint_pos_prior,
         weight=0.2,
-        params={"std": 1.0},
+        params={"command_name": "motion", "std": 1.0},
     )
     ref_base_height = RewTerm(
         func=vreward.ref_base_height_prior,
         weight=0.2,
-        params={"std": 0.25},
+        params={"command_name": "motion", "std": 0.25},
     )
 
     # ── Regularisation ─────────────────────────────────────
@@ -230,6 +230,9 @@ class F1VelocityEnvCfg(TrackingEnvCfg):
         self.commands.motion.motion_file = (
             f"{ASSET_DIR}/f1/motions/converted/B3_walk1_weichai_f1_29.npz"
         )
+
+        # F1 has lumbar_pitch_link instead of torso_link
+        self.events.base_com.params["asset_cfg"] = SceneEntityCfg("robot", body_names="lumbar_pitch_link")
 
         # Update termination thresholds for velocity control
         # (keep a bit looser than the tracking setup)
