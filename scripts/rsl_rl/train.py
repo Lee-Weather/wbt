@@ -95,7 +95,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     env_cfg.seed = agent_cfg.seed
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
 
-    # load the motion file either from a local path or from the wandb registry
+    # load the motion file either from a local path, from the wandb registry, or from the config default
     registry_name = args_cli.registry_name
     if args_cli.motion_file is not None:
         print(f"[INFO]: Using local motion file: {args_cli.motion_file}")
@@ -110,6 +110,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         api = wandb.Api()
         artifact = api.artifact(registry_name)
         env_cfg.commands.motion.motion_file = str(pathlib.Path(artifact.download()) / "motion.npz")
+    elif hasattr(env_cfg.commands, "motion") and hasattr(env_cfg.commands.motion, "motion_file") and env_cfg.commands.motion.motion_file:
+        print(f"[INFO]: Using default motion file from config: {env_cfg.commands.motion.motion_file}")
     else:
         raise ValueError("Either --motion_file or --registry_name must be provided.")
 
