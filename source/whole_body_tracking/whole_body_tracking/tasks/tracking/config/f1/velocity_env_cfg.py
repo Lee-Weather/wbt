@@ -232,7 +232,7 @@ class F1VelocityEnvCfg(TrackingEnvCfg):
         )
 
         # F1 has lumbar_pitch_link instead of torso_link
-        self.events.base_com.params["asset_cfg"] = SceneEntityCfg("robot", body_names="lumbar_pitch_link")
+        self.events.base_com.params["asset_cfg"] = SceneCfg("robot", body_names="lumbar_pitch_link")
 
         # Update termination thresholds for velocity control
         # (keep a bit looser than the tracking setup)
