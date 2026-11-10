@@ -177,7 +177,7 @@ class VelocityRewardsCfg:
 
     # ── Termination penalty ────────────────────────────────
     undesired_contacts = RewTerm(
-        func="undesired_contacts",
+        func=mdp.undesired_contacts,
         weight=-0.05,
         params={
             "sensor_cfg": SceneCfg(
