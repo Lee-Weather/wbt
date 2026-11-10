@@ -234,10 +234,26 @@ class F1VelocityEnvCfg(TrackingEnvCfg):
         # F1 has lumbar_pitch_link instead of torso_link
         self.events.base_com.params["asset_cfg"] = SceneCfg("robot", body_names="lumbar_pitch_link")
 
-        # Update termination thresholds for velocity control
-        # (keep a bit looser than the tracking setup)
-        self.terminations.anchor_pos.params["threshold"] = 0.30
-        self.terminations.anchor_ori.params["threshold"] = 0.80
+        # ── Override terminations ────────────────────────────────
+        # Use velocity-specific functions that check robot state directly
+        # (no dependency on reference-trajectory attributes).
+        from whole_body_tracking.tasks.tracking.mdp import (
+            base_height_fall,
+            base_tilt,
+            limbs_below_ground,
+        )
+        self.terminations.anchor_pos = DoneTerm(
+            func=base_height_fall,
+            params={"threshold": 0.30},
+        )
+        self.terminations.anchor_ori = DoneTerm(
+            func=base_tilt,
+            params={"threshold": 1.0},
+        )
+        self.terminations.ee_body_pos = DoneTerm(
+            func=limbs_below_ground,
+            params={"threshold": 0.10},
+        )
 
         # ── Episode length ─────────────────────────────────
         self.episode_length_s = 10.0
