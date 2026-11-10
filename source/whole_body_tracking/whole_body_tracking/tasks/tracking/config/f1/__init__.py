@@ -1,6 +1,6 @@
 import gymnasium as gym
 
-from . import agents, flat_env_cfg, flat_env_cfg_run, flat_env_cfg_walk
+from . import agents, flat_env_cfg, flat_env_cfg_run, flat_env_cfg_walk, velocity_env_cfg
 
 ##
 # Register Gym environments.
@@ -34,6 +34,17 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": flat_env_cfg_run.F1FlatRunEnvCfg,
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:F1FlatPPORunnerCfg",
+    },
+)
+
+# Velocity-conditioned locomotion (command-driven, with reference prior)
+gym.register(
+    id="Tracking-Flat-F1-Velocity-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": velocity_env_cfg.F1VelocityEnvCfg,
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:F1FlatPPORunnerCfg",
     },
 )
