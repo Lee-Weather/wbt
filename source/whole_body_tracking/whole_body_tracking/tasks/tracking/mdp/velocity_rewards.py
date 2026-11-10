@@ -104,7 +104,7 @@ def feet_air_time(env: ManagerBasedRLEnv,
     last_contact = contact_sensor.data.last_contact_time[:, sensor_cfg.body_ids]
     air_time = torch.where(
         last_contact > threshold,
-        first_air,
-        first_air - last_contact + threshold,
+        first_air.float(),
+        first_air.float() - last_contact + threshold,
     )
     return torch.sum(air_time, dim=-1)
