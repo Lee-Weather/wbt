@@ -41,6 +41,7 @@ class VelocityCommandsCfg(_CommandsCfg):
 
     motion = VelocityCommandCfg(
         asset_name="robot",
+        resampling_time_range=(1.0e9, 1.0e9),
         motion_file="${..motion_file}",        # filled by env config below
         # ── velocity range (m/s, rad/s) ─────────────
         vx_min=-1.0,
