@@ -44,12 +44,12 @@ class VelocityCommandsCfg(_CommandsCfg):
         resampling_time_range=(1.0e9, 1.0e9),
         motion_file="${..motion_file}",        # filled by env config below
         # ── velocity range (m/s, rad/s) ─────────────
-        vx_min=-1.0,
-        vx_max=1.0,
-        vy_min=-0.4,
-        vy_max=0.4,
-        yaw_min=-0.8,
-        yaw_max=0.8,
+        vx_min=-0.5,
+        vx_max=0.5,
+        vy_min=-0.2,
+        vy_max=0.2,
+        yaw_min=-0.4,
+        yaw_max=0.4,
         # ── reference clip metadata ────────────────
         ref_forward_speed=0.6,
         min_command_speed=0.05,
@@ -76,15 +76,6 @@ class VelocityObsCfg:
         # ── 3-dim velocity command ───────────────────
         command = ObsTerm(
             func=mdp.generated_commands,
-            params={"command_name": "motion"},
-        )
-
-        # ── reference joint pose (29-dim) ────────────
-        # Gives the policy a strong prior on the target pose
-        # so it can focus on velocity modulation rather than
-        # discovering gait from scratch.
-        ref_joint_pos = ObsTerm(
-            func=mdp.ref_joint_pos,
             params={"command_name": "motion"},
         )
 
@@ -118,10 +109,6 @@ class VelocityObsCfg:
             func=mdp.generated_commands,
             params={"command_name": "motion"},
         )
-        ref_joint_pos = ObsTerm(
-            func=mdp.ref_joint_pos,
-            params={"command_name": "motion"},
-        )
         base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
         joint_pos = ObsTerm(func=mdp.joint_pos_rel)
@@ -140,12 +127,18 @@ class VelocityObsCfg:
 
 @configclass
 class VelocityRewardsCfg:
-    """Reward terms: velocity tracking + regularisation (no reference prior)."""
+    """Reward terms: alive bonus + velocity tracking + regularisation."""
+
+    # ── Survival incentive ────────────────────────────────
+    alive = RewTerm(
+        func=vreward.alive_bonus,
+        weight=1.0,
+    )
 
     # ── Primary objective: velocity tracking ─────────────────
     lin_vel_tracking = RewTerm(
         func=vreward.tracking_lin_vel,
-        weight=2.0,
+        weight=1.0,
         params={"command_name": "motion", "std": 0.25},
     )
     ang_vel_tracking = RewTerm(

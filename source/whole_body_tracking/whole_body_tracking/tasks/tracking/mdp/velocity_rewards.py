@@ -108,3 +108,18 @@ def feet_air_time(env: ManagerBasedRLEnv,
         first_air.float() - last_contact + threshold,
     )
     return torch.sum(air_time, dim=-1)
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  Survival / regularisation
+# ═══════════════════════════════════════════════════════════════════
+
+
+def alive_bonus(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Positive reward for staying alive (not terminated).
+
+    This is the primary gradient that drives exploration.  Without it,
+    the robot gets ~zero tracking reward early in training (when it can't
+    yet walk) and has no incentive to keep trying.
+    """
+    return torch.ones(env.num_envs, dtype=torch.float32, device=env.device) * 2.0
