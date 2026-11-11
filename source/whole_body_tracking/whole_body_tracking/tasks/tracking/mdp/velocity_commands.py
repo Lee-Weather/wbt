@@ -31,6 +31,25 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
+# ── Observation helper ─────────────────────────────────────────────
+
+
+def ref_joint_pos(env: ManagerBasedRLEnv, command_name: str) -> torch.Tensor:
+    """Return the reference joint positions from the velocity command.
+
+    Provides a strong prior on the target pose so the policy can focus on
+    modulating velocity rather than discovering gait from scratch.
+    """
+    cmd: VelocityCommand = env.command_manager.get_term(command_name)
+    return cmd.ref_joint_pos
+
+
+def ref_joint_vel(env: ManagerBasedRLEnv, command_name: str) -> torch.Tensor:
+    """Return the reference joint velocities from the velocity command."""
+    cmd: VelocityCommand = env.command_manager.get_term(command_name)
+    return cmd.ref_joint_vel
+
+
 class VelocityCommand(CommandTerm):
     """Command term that provides velocity commands + scaled reference playback."""
 

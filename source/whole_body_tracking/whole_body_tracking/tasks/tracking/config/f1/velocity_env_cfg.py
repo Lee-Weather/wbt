@@ -79,6 +79,15 @@ class VelocityObsCfg:
             params={"command_name": "motion"},
         )
 
+        # ── reference joint pose (29-dim) ────────────
+        # Gives the policy a strong prior on the target pose
+        # so it can focus on velocity modulation rather than
+        # discovering gait from scratch.
+        ref_joint_pos = ObsTerm(
+            func=mdp.ref_joint_pos,
+            params={"command_name": "motion"},
+        )
+
         # ── proprioception ──────────────────────────
         base_lin_vel = ObsTerm(
             func=mdp.base_lin_vel,
@@ -109,6 +118,10 @@ class VelocityObsCfg:
             func=mdp.generated_commands,
             params={"command_name": "motion"},
         )
+        ref_joint_pos = ObsTerm(
+            func=mdp.ref_joint_pos,
+            params={"command_name": "motion"},
+        )
         base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
         joint_pos = ObsTerm(func=mdp.joint_pos_rel)
@@ -127,36 +140,24 @@ class VelocityObsCfg:
 
 @configclass
 class VelocityRewardsCfg:
-    """Reward terms: primary velocity tracking + gait prior + regularisation."""
+    """Reward terms: velocity tracking + regularisation (no reference prior)."""
 
     # ── Primary objective: velocity tracking ─────────────────
     lin_vel_tracking = RewTerm(
         func=vreward.tracking_lin_vel,
-        weight=1.5,
+        weight=2.0,
         params={"command_name": "motion", "std": 0.25},
     )
     ang_vel_tracking = RewTerm(
         func=vreward.tracking_ang_vel,
-        weight=1.0,
-        params={"command_name": "motion", "std": 0.25},
-    )
-
-    # ── Gait prior (soft constraint from reference clip) ────
-    ref_joint_prior = RewTerm(
-        func=vreward.ref_joint_pos_prior,
-        weight=0.2,
-        params={"command_name": "motion", "std": 1.0},
-    )
-    ref_base_height = RewTerm(
-        func=vreward.ref_base_height_prior,
-        weight=0.2,
+        weight=1.5,
         params={"command_name": "motion", "std": 0.25},
     )
 
     # ── Regularisation ─────────────────────────────────────
     action_rate_l2 = RewTerm(
         func=vreward.action_rate,
-        weight=-0.01,
+        weight=-0.005,
     )
 
     # ── Feet air-time (encourages alternating swing/stance) ─
@@ -178,7 +179,7 @@ class VelocityRewardsCfg:
     # ── Termination penalty ────────────────────────────────
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
-        weight=-0.05,
+        weight=-0.1,
         params={
             "sensor_cfg": SceneCfg(
                 "contact_forces",
@@ -189,6 +190,13 @@ class VelocityRewardsCfg:
             ),
             "threshold": 1.0,
         },
+    )
+
+    # ── Joint position limits ──────────────────────────────
+    joint_limits = RewTerm(
+        func=mdp.joint_pos_limits,
+        weight=-5.0,
+        params={"asset_cfg": SceneCfg("robot", joint_names=[".*"])},
     )
 
 
