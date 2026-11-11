@@ -70,7 +70,6 @@ class VelocityActionsCfg:
 
     joint_pos = RefJointPositionActionCfg(
         asset_name="robot",
-        joint_names=[".*"],
         command_name="motion",
         scale=0.1,                      # small residual around reference
     )
