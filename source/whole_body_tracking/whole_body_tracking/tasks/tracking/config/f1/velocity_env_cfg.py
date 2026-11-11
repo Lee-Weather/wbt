@@ -93,6 +93,10 @@ class VelocityObsCfg:
             noise=Unoise(n_min=-0.1, n_max=0.1),
         )
         actions = ObsTerm(func=mdp.last_action)
+        ref_joint_pos = ObsTerm(
+            func=mdp.ref_joint_pos,
+            params={"command_name": "motion"},
+        )
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -110,6 +114,10 @@ class VelocityObsCfg:
         joint_pos = ObsTerm(func=mdp.joint_pos_rel)
         joint_vel = ObsTerm(func=mdp.joint_vel_rel)
         actions = ObsTerm(func=mdp.last_action)
+        ref_joint_pos = ObsTerm(
+            func=mdp.ref_joint_pos,
+            params={"command_name": "motion"},
+        )
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
