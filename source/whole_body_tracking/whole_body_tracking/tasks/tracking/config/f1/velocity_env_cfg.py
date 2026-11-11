@@ -15,10 +15,9 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import whole_body_tracking.tasks.tracking.mdp as mdp
-from whole_body_tracking.robots.f1 import F1_ACTION_SCALE, F1_CFG
+from whole_body_tracking.robots.f1 import F1_CFG
 from whole_body_tracking.tasks.tracking.tracking_env_cfg import (
     CommandsCfg as _CommandsCfg,     # base class (we override motion)
-    ActionsCfg,
     EventCfg,
     TerminationsCfg,
     MySceneCfg,
@@ -28,6 +27,9 @@ from whole_body_tracking.tasks.tracking.mdp.velocity_commands import (
     VelocityCommandCfg,
 )
 from whole_body_tracking.tasks.tracking.mdp import velocity_rewards as vreward
+from whole_body_tracking.tasks.tracking.mdp.ref_joint_action import (
+    RefJointPositionActionCfg,
+)
 
 
 # Commands
@@ -51,6 +53,26 @@ class VelocityCommandsCfg(_CommandsCfg):
         # reference clip metadata
         ref_forward_speed=0.6,
         min_command_speed=0.05,
+    )
+
+
+# Actions
+
+
+@configclass
+class VelocityActionsCfg:
+    """Action specification using reference trajectory as the baseline.
+
+    The policy outputs a small residual that is added to the reference joint
+    positions from the velocity command. This ensures the robot always follows
+    a walking-like gait while the policy learns to modulate speed.
+    """
+
+    joint_pos = RefJointPositionActionCfg(
+        asset_name="robot",
+        joint_names=[".*"],
+        command_name="motion",
+        scale=0.1,                      # small residual around reference
     )
 
 
@@ -233,6 +255,7 @@ class F1VelocityEnvCfg(TrackingEnvCfg):
     commands: VelocityCommandsCfg = VelocityCommandsCfg()
     observations: VelocityObsCfg = VelocityObsCfg()
     rewards: VelocityRewardsCfg = VelocityRewardsCfg()
+    actions: VelocityActionsCfg = VelocityActionsCfg()
 
     # Keep existing scene / events / terminations
     # (inherited from TrackingCfg)
@@ -242,7 +265,6 @@ class F1VelocityEnvCfg(TrackingEnvCfg):
 
         # Wire robot config
         self.scene.robot = F1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.actions.joint_pos.scale = F1_ACTION_SCALE
 
         # Point motion_file to a default reference clip
         from whole_body_tracking.assets import ASSET_DIR
