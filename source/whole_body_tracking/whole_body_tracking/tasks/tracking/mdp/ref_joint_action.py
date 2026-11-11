@@ -111,7 +111,7 @@ class RefJointPositionAction(ActionTerm):
 
     def apply_actions(self):
         """Send computed joint positions to the simulator."""
-        self._asset.set_joint_position_target_index(
+        self._asset.set_joint_position_target(
             target=self._processed_actions,
             joint_ids=self._joint_ids,
         )
