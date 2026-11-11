@@ -10,7 +10,7 @@ class F1FlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     experiment_name = "f1_flat"
     empirical_normalization = True
     policy = RslRlPpoActorCriticCfg(
-        init_noise_std=0.6,
+        init_noise_std=0.08,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",

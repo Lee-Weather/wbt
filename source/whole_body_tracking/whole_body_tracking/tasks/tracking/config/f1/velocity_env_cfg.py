@@ -30,9 +30,7 @@ from whole_body_tracking.tasks.tracking.mdp.velocity_commands import (
 from whole_body_tracking.tasks.tracking.mdp import velocity_rewards as vreward
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  Commands
-# ═══════════════════════════════════════════════════════════════════
+# Commands
 
 
 @configclass
@@ -43,22 +41,20 @@ class VelocityCommandsCfg(_CommandsCfg):
         asset_name="robot",
         resampling_time_range=(1.0e9, 1.0e9),
         motion_file="${..motion_file}",        # filled by env config below
-        # ── velocity range (m/s, rad/s) ─────────────
+        # velocity range (m/s, rad/s)
         vx_min=-0.5,
         vx_max=0.5,
         vy_min=-0.2,
         vy_max=0.2,
         yaw_min=-0.4,
         yaw_max=0.4,
-        # ── reference clip metadata ────────────────
+        # reference clip metadata
         ref_forward_speed=0.6,
         min_command_speed=0.05,
     )
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  Observations
-# ═══════════════════════════════════════════════════════════════════
+# Observations
 
 
 @configclass
@@ -73,20 +69,20 @@ class VelocityObsCfg:
     @configclass
     class PolicyCfg(ObsGroup):
 
-        # ── 3-dim velocity command ───────────────────
+        # 3-dim velocity command
         command = ObsTerm(
             func=mdp.generated_commands,
             params={"command_name": "motion"},
         )
 
-        # ── proprioception ──────────────────────────
+        # proprioception (reduced noise)
         base_lin_vel = ObsTerm(
             func=mdp.base_lin_vel,
-            noise=Unoise(n_min=-0.5, n_max=0.5),
+            noise=Unoise(n_min=-0.05, n_max=0.05),
         )
         base_ang_vel = ObsTerm(
             func=mdp.base_ang_vel,
-            noise=Unoise(n_min=-0.2, n_max=0.2),
+            noise=Unoise(n_min=-0.05, n_max=0.05),
         )
         joint_pos = ObsTerm(
             func=mdp.joint_pos_rel,
@@ -94,7 +90,7 @@ class VelocityObsCfg:
         )
         joint_vel = ObsTerm(
             func=mdp.joint_vel_rel,
-            noise=Unoise(n_min=-0.5, n_max=0.5),
+            noise=Unoise(n_min=-0.1, n_max=0.1),
         )
         actions = ObsTerm(func=mdp.last_action)
 
@@ -120,22 +116,20 @@ class VelocityObsCfg:
     critic: CriticCfg = CriticCfg()
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  Rewards
-# ═══════════════════════════════════════════════════════════════════
+# Rewards
 
 
 @configclass
 class VelocityRewardsCfg:
-    """Reward terms: alive bonus + velocity tracking + regularisation."""
+    """Reward terms: alive bonus + velocity tracking + shaping + regularisation."""
 
-    # ── Survival incentive ────────────────────────────────
+    # Survival incentive
     alive = RewTerm(
         func=vreward.alive_bonus,
         weight=1.0,
     )
 
-    # ── Primary objective: velocity tracking ─────────────────
+    # Primary objective: velocity tracking
     lin_vel_tracking = RewTerm(
         func=vreward.tracking_lin_vel,
         weight=1.0,
@@ -147,13 +141,21 @@ class VelocityRewardsCfg:
         params={"command_name": "motion", "std": 0.25},
     )
 
-    # ── Regularisation ─────────────────────────────────────
+    # Smoothness / efficiency
     action_rate_l2 = RewTerm(
         func=vreward.action_rate,
         weight=-0.005,
     )
+    dof_torques_l2 = RewTerm(
+        func=vreward.dof_torques_l2,
+        weight=-2.5e-5,
+    )
+    dof_vel_l2 = RewTerm(
+        func=vreward.dof_vel_l2,
+        weight=-1e-4,
+    )
 
-    # ── Feet air-time (encourages alternating swing/stance) ─
+    # Gait quality
     feet_air_time = RewTerm(
         func=vreward.feet_air_time,
         weight=0.05,
@@ -169,7 +171,17 @@ class VelocityRewardsCfg:
         },
     )
 
-    # ── Termination penalty ────────────────────────────────
+    # Stability shaping
+    lin_vel_z = RewTerm(
+        func=vreward.lin_vel_z,
+        weight=-1.0,
+    )
+    orientation = RewTerm(
+        func=vreward.orientation,
+        weight=0.5,
+    )
+
+    # Termination penalty
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
         weight=-0.1,
@@ -185,7 +197,7 @@ class VelocityRewardsCfg:
         },
     )
 
-    # ── Joint position limits ──────────────────────────────
+    # Joint position limits
     joint_limits = RewTerm(
         func=mdp.joint_pos_limits,
         weight=-5.0,
@@ -193,9 +205,7 @@ class VelocityRewardsCfg:
     )
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  Environment config
-# ═══════════════════════════════════════════════════════════════════
+# Environment config
 
 
 @configclass
@@ -211,13 +221,13 @@ class F1VelocityEnvCfg(TrackingEnvCfg):
             --headless
     """
 
-    # ── Override components ─────────────────────────────────
+    # Override components
     commands: VelocityCommandsCfg = VelocityCommandsCfg()
     observations: VelocityObsCfg = VelocityObsCfg()
     rewards: VelocityRewardsCfg = VelocityRewardsCfg()
 
-    # ── Keep existing scene / events / terminations ─────────
-    # (inherited from TrackingEnvCfg)
+    # Keep existing scene / events / terminations
+    # (inherited from TrackingCfg)
 
     def __post_init__(self):
         super().__post_init__()
@@ -235,9 +245,8 @@ class F1VelocityEnvCfg(TrackingEnvCfg):
         # F1 has lumbar_pitch_link instead of torso_link
         self.events.base_com.params["asset_cfg"] = SceneCfg("robot", body_names="lumbar_pitch_link")
 
-        # ── Override terminations ────────────────────────────────
-        # Use velocity-specific functions that check robot state directly
-        # (no dependency on reference-trajectory attributes).
+        # Override terminations with velocity-specific functions
+        # that check robot state directly (no dependency on reference-trajectory attributes).
         from whole_body_tracking.tasks.tracking.mdp import (
             base_height_fall,
             base_tilt,
@@ -256,5 +265,5 @@ class F1VelocityEnvCfg(TrackingEnvCfg):
             params={"threshold": 0.10},
         )
 
-        # ── Episode length ─────────────────────────────────
+        # Episode length
         self.episode_length_s = 10.0

@@ -3,8 +3,8 @@ Reward functions for velocity-conditioned locomotion training.
 
 Combines:
 1. Velocity tracking reward (primary objective)
-2. Reference trajectory prior (soft regularisation — keeps gait natural)
-3. Energy / smoothness penalties
+2. Shaped auxiliary rewards for stable gait (orientation, smoothness, efficiency)
+3. Survival bonus to bootstrap learning
 """
 
 from __future__ import annotations
@@ -123,3 +123,52 @@ def alive_bonus(env: ManagerBasedRLEnv) -> torch.Tensor:
     yet walk) and has no incentive to keep trying.
     """
     return torch.ones(env.num_envs, dtype=torch.float32, device=env.device) * 2.0
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  Shaping rewards for gait quality
+# ═══════════════════════════════════════════════════════════════════
+
+
+def dof_torques_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Penalise large joint torques (energy efficiency)."""
+    return torch.sum(env.scene["robot"].data.applied_torque ** 2, dim=-1)
+
+
+def lin_vel_z(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Penalise vertical velocity (discourage hopping / bouncing)."""
+    return env.scene["robot"].data.root_lin_vel_b[:, 2] ** 2
+
+
+def dof_vel_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Penalise large joint velocities."""
+    return torch.sum(env.scene["robot"].data.joint_vel ** 2, dim=-1)
+
+
+def orientation(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Reward the robot for keeping its torso upright.
+
+    Computes the dot product of the current base z-axis with the world
+    gravity direction (0,0,1).  When perfectly upright returns 1,
+    when upside down returns -1.
+    """
+    # Base z-axis in world frame
+    quat = env.scene["robot"].data.root_quat_w
+
+    # Manual quat_apply: rotate local z (0,0,1) by quat
+    z_local = torch.tensor([[0.0, 0.0, 1.0]], device=env.device).expand(env.num_envs, -1)
+
+    w = quat[:, 0:1]
+    x = quat[:, 1:2]
+    y = quat[:, 2:3]
+    z = quat[:, 3:4]
+
+    # t = 2 * cross(xyz, v)
+    tx = 2 * (y * z_local[:, 2:3] - z * z_local[:, 1:2])
+    ty = 2 * (z * z_local[:, 0:1] - x * z_local[:, 2:3])
+    tz = 2 * (x * z_local[:, 1:2] - y * z_local[:, 0:1])
+
+    # v' = v + w * t + cross(xyz, t)
+    vz = z_local[:, 2:3] + w * tz + x * ty - y * tx
+
+    return vz.squeeze(-1)
