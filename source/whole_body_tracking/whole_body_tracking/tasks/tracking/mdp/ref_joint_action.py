@@ -17,8 +17,7 @@ from typing import TYPE_CHECKING
 
 from isaaclab.managers.action_manager import ActionTerm
 from isaaclab.managers.manager_term_cfg import ActionTermCfg
-from isaaclab.utils import configclass
-from isaaclab.assets import Articulation
+from isaaclab.utils import configclass, string_utils
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -66,9 +65,10 @@ class RefJointPositionAction(ActionTerm):
         self._command_name = cfg.command_name
 
         # Buffers
-        device = self._asset.device
-        self._raw_actions = torch.zeros(self._num_joints, device=device)
-        self._processed_actions = torch.zeros(self._num_joints, device=device)
+        device = self._device
+        num_envs = self._num_envs
+        self._raw_actions = torch.zeros(num_envs, self._num_joints, device=device)
+        self._processed_actions = torch.zeros(num_envs, self._num_joints, device=device)
 
     # ── Properties ─────────────────────────────────────────────────
 
@@ -97,11 +97,24 @@ class RefJointPositionAction(ActionTerm):
         # target = ref_pos + actions * scale
         processed = ref_pos + actions * self._scale
 
-        # Apply clipping if configured
+        # Apply clipping if configured (dict[str, tuple] → per-joint tensor)
         if self.cfg.clip is not None:
-            clip_min = self.cfg.clip[:, 0].unsqueeze(0).expand_as(processed)
-            clip_max = self.cfg.clip[:, 1].unsqueeze(0).expand_as(processed)
-            processed = torch.clamp(processed, clip_min, clip_max)
+            clip_low = []
+            clip_high = []
+            for name in self._joint_names:
+                matched = False
+                for pattern, (lo, hi) in self.cfg.clip.items():
+                    if string_utils.matches_pattern(name, pattern):
+                        clip_low.append(lo)
+                        clip_high.append(hi)
+                        matched = True
+                        break
+                if not matched:
+                    clip_low.append(-torch.inf)
+                    clip_high.append(torch.inf)
+            clip_low = torch.tensor(clip_low, device=processed.device).unsqueeze(0)
+            clip_high = torch.tensor(clip_high, device=processed.device).unsqueeze(0)
+            processed = torch.clamp(processed, clip_low, clip_high)
 
         self._processed_actions = processed
 
