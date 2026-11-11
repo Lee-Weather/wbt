@@ -15,7 +15,7 @@ learns to track the commanded velocity.
 
 from __future__ import annotations
 
-import math
+
 import numpy as np
 import torch
 from collections.abc import Sequence
@@ -178,19 +178,8 @@ class VelocityCommand(CommandTerm):
         self._vy[env_ids] = vy
         self._yaw[env_ids] = yaw
 
-        # Reset to random start frame
-        max_step = int(math.ceil(
-            self._env.cfg.episode_length_s
-            / (self._env.cfg.decimation * self._env.cfg.sim.dt)
-        ))
-        max_start = max(0, self._n_frames - max_step - 1)
-
-        if max_start > 0:
-            start = torch.randint(0, max_start, (len(env_ids),), device=self.device)
-        else:
-            start = torch.zeros(len(env_ids), dtype=torch.long, device=self.device)
-
-        self._time_step[env_ids] = start
+        # Always start from frame 0 (balanced walk-cycle pose)
+        self._time_step[env_ids] = torch.zeros(len(env_ids), dtype=torch.long, device=self.device)
 
     def _update_command(self):
         """Advance one frame per step (no velocity scaling in V1)."""

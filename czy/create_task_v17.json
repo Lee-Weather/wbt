@@ -1,0 +1,18 @@
+{
+  "taskBaseInfo": {
+    "projectId": "PRO_20261109_001",
+    "taskName": "f1-velocity-control-v17",
+    "taskDescription": "Velocity F1 - fix: always start ref from frame 0, ref_joint_action scale=0.1, quick test 500 iterations",
+    "goodsId": "ESKU000001",
+    "goodsBackId": "SKUSL000002",
+    "goodsNum": 1,
+    "imageId": "BJX00000028",
+    "imageVersion": "V000127"
+  },
+  "taskCodeInfo": {
+    "codeUrl": "[{\"codeUrl\":\"https://github.com/Lee-Weather/wbt.git\",\"versionType\":\"1\",\"versionName\":\"f1-velocity-control\"}]",
+    "codeType": "2",
+    "startScript": "gm-run wbt/scripts/rsl_rl/train.py --task=Tracking-Flat-F1-Velocity-v0 --headless --max_iterations=500",
+    "pullSubmodules": "1"
+  }
+}
