@@ -29,15 +29,17 @@ def base_height_fall(
     asset = env.scene[asset_cfg.name]
     height = asset.data.root_pos_w[:, 2] - env.scene.env_origins[:, 2]
     # TEMP DIAGNOSTIC (remove after debugging the instant-termination issue)
-    n_dbg = getattr(env, "_dbg_height_calls", 0)
-    if n_dbg < 3:
-        env._dbg_height_calls = n_dbg + 1
+    n_dbg = getattr(env, "_dbg_n", 0)
+    if n_dbg < 8:
+        env._dbg_n = n_dbg + 1
+        buf = env.episode_length_buf
         print(
-            f"[DBG height] step={getattr(env, 'episode_length_buf', None) is not None and int(env.episode_length_buf.max())}"
-            f" root_z mean={asset.data.root_pos_w[:, 2].mean().item():.3f}"
-            f" min={asset.data.root_pos_w[:, 2].min().item():.3f}"
-            f" origins_z={env.scene.env_origins[:, 2].mean().item():.3f}"
-            f" frac_terminated={(height < threshold).float().mean().item():.3f}",
+            f"[DBG#{n_dbg}] ctr={env.common_step_counter}"
+            f" max_ep_len={getattr(env, 'max_episode_length', 'NA')}"
+            f" buf_min={int(buf.min())} buf_max={int(buf.max())}"
+            f" terms={env.termination_manager.active_terms}"
+            f" z_mean={asset.data.root_pos_w[:, 2].mean().item():.3f}"
+            f" frac={float((height < threshold).float().mean()):.3f}",
             flush=True,
         )
     return height < threshold
@@ -63,17 +65,6 @@ def base_tilt(
     # vertical component of gravity in base frame
     # if upright: gravity_base[:, 2] ≈ -1  →  cos_angle ≈ 1
     cos_angle = -gravity_base[:, 2]
-    # TEMP DIAGNOSTIC
-    n_dbg = getattr(env, "_dbg_tilt_calls", 0)
-    if n_dbg < 3:
-        env._dbg_tilt_calls = n_dbg + 1
-        print(
-            f"[DBG tilt] cos_angle mean={cos_angle.mean().item():.3f}"
-            f" min={cos_angle.min().item():.3f}"
-            f" frac_terminated={(cos_angle < torch.cos(torch.tensor(threshold))).float().mean().item():.3f}"
-            f" quat_w_mean={asset.data.root_quat_w[:, 0].mean().item():.3f}",
-            flush=True,
-        )
     return cos_angle < torch.cos(torch.tensor(threshold))
 
 
