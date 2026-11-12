@@ -29,16 +29,16 @@ def base_height_fall(
     asset = env.scene[asset_cfg.name]
     height = asset.data.root_pos_w[:, 2] - env.scene.env_origins[:, 2]
     # TEMP DIAGNOSTIC (remove after debugging the instant-termination issue)
-    n_dbg = getattr(env, "_dbg_n", 0)
-    if n_dbg < 8:
-        env._dbg_n = n_dbg + 1
-        buf = env.episode_length_buf
+    ctr = getattr(env, "common_step_counter", -1)
+    if ctr % 20 == 0 and getattr(env, "_dbg_last", -1) != ctr:
+        env._dbg_last = ctr
+        tm = env.termination_manager
+        per = {k: int(v.sum()) for k, v in getattr(tm, "_term_dones", {}).items()}
         print(
-            f"[DBG#{n_dbg}] ctr={env.common_step_counter}"
-            f" max_ep_len={getattr(env, 'max_episode_length', 'NA')}"
-            f" buf_min={int(buf.min())} buf_max={int(buf.max())}"
-            f" terms={env.termination_manager.active_terms}"
-            f" z_mean={asset.data.root_pos_w[:, 2].mean().item():.3f}"
+            f"[DBG {ctr}] n_term={int(tm.terminated.sum())} per={per}"
+            f" buf_mean={float(env.episode_length_buf.float().mean()):.1f}"
+            f" buf_max={int(env.episode_length_buf.max())}"
+            f" z={asset.data.root_pos_w[:, 2].mean().item():.3f}"
             f" frac={float((height < threshold).float().mean()):.3f}",
             flush=True,
         )
