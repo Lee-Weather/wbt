@@ -47,8 +47,10 @@ class RefJointPositionAction(ActionTerm):
         self._scale = cfg.scale
 
         # Buffers: (num_envs, num_joints)
-        device = self._device
-        n = self._num_envs
+        # NOTE: ActionTerm does not define `_device` / `_num_envs`; use the
+        # ManagerTermBase properties (same pattern as VelocityCommand).
+        device = self.device
+        n = self.num_envs
         self._raw_actions = torch.zeros(n, self._num_joints, device=device)
         self._processed_actions = torch.zeros(n, self._num_joints, device=device)
 
