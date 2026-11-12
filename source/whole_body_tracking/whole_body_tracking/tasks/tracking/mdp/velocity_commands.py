@@ -63,11 +63,23 @@ class VelocityCommand(CommandTerm):
         # ── Load NPZ reference motion ──────────────────────────────
         data = np.load(cfg.motion_file)
 
+        # The clip stores joints in its own order; the articulation exposes its
+        # own. Reorder by name (same rule as MotionLoader) — otherwise the
+        # reference pose is permuted and every episode dies on the first step.
+        npz_joint_names = data["joint_names"] if "joint_names" in data.files else None
+        if npz_joint_names is not None:
+            missing = [n for n in self.robot.joint_names if n not in set(npz_joint_names.tolist())]
+            if missing:
+                raise ValueError(f"reference clip is missing robot joints: {missing}")
+            joint_order = [int(np.where(npz_joint_names == name)[0][0]) for name in self.robot.joint_names]
+        else:
+            joint_order = list(range(self.robot.num_joints))
+
         self._ref_joint_pos = torch.tensor(
-            data["joint_pos"].copy(), dtype=torch.float32, device=self.device
+            data["joint_pos"][:, joint_order].copy(), dtype=torch.float32, device=self.device
         )
         self._ref_joint_vel = torch.tensor(
-            data["joint_vel"].copy(), dtype=torch.float32, device=self.device
+            data["joint_vel"][:, joint_order].copy(), dtype=torch.float32, device=self.device
         )
         # root (first body) trajectory: NPZ stores body_pos_w[:, 0], body_quat_w[:, 0]
         self._ref_root_pos = torch.tensor(
