@@ -49,7 +49,12 @@ def randomize_joint_default_pos(
             env_ids = env_ids[:, None]
         asset.data.default_joint_pos[env_ids, joint_ids] = pos
         # update the offset in action since it is not updated automatically
-        env.action_manager.get_term("joint_pos")._offset[env_ids, joint_ids] = pos
+        # NOTE: action terms that keep their own baseline (e.g. the residual
+        # RefJointPositionAction used by the velocity task) expose no `_offset`;
+        # skip the sync for them instead of raising AttributeError.
+        action_term = env.action_manager.get_term("joint_pos")
+        if hasattr(action_term, "_offset"):
+            action_term._offset[env_ids, joint_ids] = pos
 
 
 def randomize_rigid_body_com(
