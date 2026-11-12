@@ -80,20 +80,6 @@ class RefJointPositionAction(ActionTerm):
 
         # target = ref_pos + actions * scale
         self._processed_actions = ref_pos + actions * self._scale
-        # TEMP DIAGNOSTIC
-        n_dbg = getattr(self, "_dbg_calls", 0)
-        if n_dbg < 3:
-            self._dbg_calls = n_dbg + 1
-            q = self._asset.data.joint_pos
-            err = (self._processed_actions - q).abs()
-            print(
-                f"[DBG act#{n_dbg}] ref mean={ref_pos.mean().item():.3f}"
-                f" action_absmax={actions.abs().max().item():.3f}"
-                f" target min={self._processed_actions.min().item():.3f}"
-                f" max={self._processed_actions.max().item():.3f}"
-                f" | q mean={q.mean().item():.3f} maxerr={err.max().item():.3f}",
-                flush=True,
-            )
 
     def reset(self, env_ids: list[int] | None = None):
         pass

@@ -193,6 +193,27 @@ class VelocityCommand(CommandTerm):
         # Always start from frame 0 (balanced walk-cycle pose)
         self._time_step[env_ids] = torch.zeros(len(env_ids), dtype=torch.long, device=self.device)
 
+        # Put the robot back on the reference start pose.
+        # The tracking MotionCommand does the same in its own _resample_command;
+        # without it a reset never restores the robot, so after the first fall
+        # every following episode dies on step 1 (mean episode length stuck at 1).
+        n = len(env_ids)
+        joint_pos = self._ref_joint_pos[0].unsqueeze(0).repeat(n, 1)
+        soft_limits = self.robot.data.soft_joint_pos_limits[env_ids]
+        joint_pos = torch.clip(joint_pos, soft_limits[:, :, 0], soft_limits[:, :, 1])
+        joint_vel = torch.zeros_like(joint_pos)
+        self.robot.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
+
+        # Keep only the heading of the reference root orientation so the robot
+        # never spawns tilted, and ignore the clip's global x/y offset.
+        root_pos = self._ref_root_pos[0].unsqueeze(0).repeat(n, 1) + self._env.scene.env_origins[env_ids]
+        root_pos[:, 2] = self.robot.data.default_root_state[env_ids, 2]
+        root_quat = yaw_quat(self._ref_root_quat[0].unsqueeze(0).repeat(n, 1))
+        root_vel = torch.zeros(n, 6, device=self.device)
+        self.robot.write_root_state_to_sim(
+            torch.cat([root_pos, root_quat, root_vel], dim=-1), env_ids=env_ids
+        )
+
     def _update_command(self):
         """Advance one frame per step (no velocity scaling in V1)."""
         self._time_step += 1
