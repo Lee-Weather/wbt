@@ -11,3 +11,7 @@ from isaaclab_tasks.utils import import_packages
 _BLACKLIST_PKGS = ["utils"]
 # Import all configs in this package
 import_packages(__name__, _BLACKLIST_PKGS)
+
+# Explicitly import velocity config to ensure registration
+# (import_packages may skip .py files that aren't directly imported as packages)
+from whole_body_tracking.tasks.tracking.config.f1 import velocity_env_cfg  # noqa: E402, F401
